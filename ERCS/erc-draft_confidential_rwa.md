@@ -84,7 +84,7 @@ interface IERCXXXX is IERC7984 {
   Returns whether `receiver` is eligible to receive the asset, ignoring any amount.
 
   - MUST NOT revert.
-  - MUST NOT encode quantitative rules.
+  - MUST NOT encode quantitative rules. Amount based restrictions and limitation checks belong in `confidentialCanTransfer`.
 
   ```solidity
   function canReceive(address receiver) external view returns (bool)
