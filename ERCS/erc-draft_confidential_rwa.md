@@ -40,7 +40,7 @@ Functions accepting a confidential pointer as input also take a `bytes calldata 
 ### Interface
 
 ```solidity
-interface IERCXXXX /* is IERC7984 */ {
+interface IERCXXXX is IERC7984 {
     event ConfidentialForcedTransfer(address indexed from, address indexed to, bytes32 amount);
 
     function canSend(address sender) external view returns (bool);
@@ -97,9 +97,8 @@ interface IERCXXXX /* is IERC7984 */ {
   - MUST return a pointer to false OR revert if `canSend(from)` returns false, unless `from` is the zero address.
   - MUST return a pointer to false OR revert if `canReceive(to)` returns false, unless `to` is the zero address.
   - MUST return a pointer to false OR revert if any other rule would prevent the transfer (such as vesting, balance caps, etc).
-  - MUST return a pointer to false if `amount` exceeds the value returned by `confidentialAvailableBalanceOf(from)`.
+  - MUST return a pointer to false if `amount` exceeds the value returned by `confidentialAvailableBalanceOf(from)`, unless `from` is the zero address.
   - MUST NOT return a pointer to false solely because `operator` is not an authorized operator for `from`. Operator authorization is enforced by [ERC-7984](./eip-7984.md). The `operator` parameter exists so that rules constraining who may initiate a transfer can be expressed.
-  - MUST NOT modify state except for bookkeeping required to create the returned pointer.
 
   ```solidity
   function confidentialCanTransfer(address operator, address from, address to, bytes32 amount, bytes calldata data) external returns (bytes32)
