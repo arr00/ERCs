@@ -3,7 +3,7 @@ eip: xxxx
 title: Confidential Real World Asset Token
 description: Compliance checks, spendable balances, and transfer enforcement for confidential tokens representing real world assets.
 author:
-discussions-to: https://ethereum-magicians.org/t/erc-confidential-real-world-asset-token/00000
+discussions-to: xxxx
 status: Draft
 type: Standards Track
 category: ERC
