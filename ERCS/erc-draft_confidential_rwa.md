@@ -168,7 +168,7 @@ This standard answers two distinct questions. The first is whether an address ma
 
 `canSend` and `canReceive` answer the first question in plaintext as `view` functions. Consumers must understand that the answer is not exhaustive: a transfer to or from an eligible address may still fail on a rule evaluated within `confidentialCanTransfer`. `confidentialCanTransfer` answers the second question as a confidential pointer, subsuming the first, and is consumed both by the token in the course of a transfer and by integrators informing a user whether a specific transfer would be permitted.
 
-The two are not collapsible into a single function. Doing so would force an inherently public boolean to be delivered as a confidential pointer, which cannot drive control flow in an integrating contract and often cannot be read without sending a transaction. Further, it is often impossible--and more often undesirable--to return the result from `confidentialCanTransfer` as plaintext.
+The two are not collapsible into a single function. Doing so would force an inherently public boolean to be delivered as a confidential pointer, which cannot drive control flow in an integrating contract and often cannot be read without sending a transaction. Conversely, it is often impossible or undesirable to return the result from `confidentialCanTransfer` as plaintext.
 
 ### The available balance is not a view function
 
@@ -178,7 +178,7 @@ Where a restriction varies continuously, as with a linear vesting schedule, no s
 
 ### Halting, freezing, and issuance are not in the interface
 
-A halted token, a frozen balance, and an unfinished vesting schedule are all rules that determine whether a transfer may proceed. `confidentialCanTransfer` and `confidentialAvailableBalanceOf` already answer that question completely, so a separate accessor for each mechanism would add surface without adding information. Mandating one mechanism would also privilege it over the others an issuer may need. This core can be extended to support more specific usecases through additional standards or implementation extensions.
+A halted token, a frozen balance, and an unfinished vesting schedule are all rules that determine whether a transfer may proceed. `confidentialCanTransfer` and `confidentialAvailableBalanceOf` already answer that question completely, so a separate accessor for each mechanism would add surface without adding information. Mandating one mechanism would also privilege it over the others an issuer may need. This core can be extended to support more specific use cases through additional standards or implementation extensions.
 
 Issuance and redemption are excluded for a different reason. Their mechanics vary widely across subscription agreements, primary market oracles, and offchain redemption queues, and no single signature generalizes over them. What does generalize is that a mint and a burn are transfers for compliance purposes, which this standard specifies.
 
@@ -190,7 +190,7 @@ A transfer that reverts when a compliance rule is not satisfied publicly disclos
 
 ### Available balance accounting
 
-Where the available balance is derived by naively subtracting a restricted amount from a balance, an forced transfer or a permissioned burn that moves more than the available balance will underflow that subtraction. Ensure saturating subtraction is used in this situation.
+Where the available balance is derived by naively subtracting a restricted amount from a balance, a forced transfer or a permissioned burn that moves more than the available balance will underflow that subtraction. Ensure saturating subtraction is used in this situation.
 
 ## Copyright
 
