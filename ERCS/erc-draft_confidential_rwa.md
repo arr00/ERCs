@@ -41,7 +41,11 @@ Functions accepting a confidential pointer as input also take a `bytes calldata 
 
 ```solidity
 interface IERCXXXX is IERC7984 {
-    event ConfidentialForcedTransfer(address indexed from, address indexed to, bytes32 amount);
+    event ConfidentialForcedTransfer(address indexed from, address indexed to, bytes32 indexed amount);
+
+    event ConfidentialCanTransfer(address indexed operator, address indexed from, address indexed to, bytes32 allowed);
+
+    event ConfidentialAvailableBalanceOf(address indexed account, bytes32 indexed amount);
 
     function canSend(address sender) external view returns (bool);
 
@@ -99,6 +103,7 @@ interface IERCXXXX is IERC7984 {
   - MUST return a pointer to false OR revert if any other rule would prevent the transfer (such as vesting, balance caps, etc).
   - MUST return a pointer to false if `amount` exceeds the value returned by `confidentialAvailableBalanceOf(from)`, unless `from` is the zero address.
   - MUST NOT return a pointer to false solely because `operator` is not an authorized operator for `from`. Operator authorization is enforced by [ERC-7984](./eip-7984.md). The `operator` parameter exists so that rules constraining who may initiate a transfer can be expressed.
+  - MUST emit `ConfidentialCanTransfer` with the returned pointer.
 
   ```solidity
   function confidentialCanTransfer(address operator, address from, address to, bytes32 amount, bytes calldata data) external returns (bytes32)
@@ -111,6 +116,7 @@ interface IERCXXXX is IERC7984 {
   - MUST be less than or equal to `confidentialBalanceOf(account)`.
   - MUST account for every restriction the implementation applies to the account's own balance, including issuer freezes, lockups, vesting schedules, and pledged amounts.
   - SHOULD NOT revert.
+  - MUST emit `ConfidentialAvailableBalanceOf` with the returned pointer.
 
   ```solidity
   function confidentialAvailableBalanceOf(address account) external returns (bytes32)
@@ -122,6 +128,7 @@ interface IERCXXXX is IERC7984 {
 
   - MUST be restricted in access.
   - MUST move 0 tokens if `amount` exceeds `confidentialBalanceOf(from)`.
+  - MAY move 0 tokens if `amount` exceeds `confidentialAvailableBalanceOf(from)`
   - MUST revert if `canReceive(to)` returns false.
   - MUST NOT call `confidentialCanTransfer`.
   - MUST emit `ConfidentialTransfer` as defined by [ERC-7984](./eip-7984.md), in addition to `ConfidentialForcedTransfer`.
@@ -134,10 +141,20 @@ interface IERCXXXX is IERC7984 {
 
 - #### `ConfidentialForcedTransfer`
 
-  MUST trigger on any successful call to `forceConfidentialTransferFrom` with the actual amount moved from `from` to `to`.
+  ```solidity
+  event ConfidentialForcedTransfer(address indexed from, address indexed to, bytes32 indexed amount)
+  ```
+
+- #### `ConfidentialCanTransfer`
 
   ```solidity
-  event ConfidentialForcedTransfer(address indexed from, address indexed to, bytes32 amount)
+  event ConfidentialCanTransfer(address indexed operator, address indexed from, address indexed to, bytes32 allowed)
+  ```
+
+- #### `ConfidentialAvailableBalanceOf`
+
+  ```solidity
+  event ConfidentialAvailableBalanceOf(address indexed account, bytes32 indexed amount)
   ```
 
 ### Pointer Authorization
@@ -168,7 +185,7 @@ This standard answers two distinct questions. The first is whether an address ma
 
 `canSend` and `canReceive` answer the first question in plaintext as `view` functions. Consumers must understand that the answer is not exhaustive: a transfer to or from an eligible address may still fail on a rule evaluated within `confidentialCanTransfer`. `confidentialCanTransfer` answers the second question as a confidential pointer, subsuming the first, and is consumed both by the token in the course of a transfer and by integrators informing a user whether a specific transfer would be permitted.
 
-The two are not collapsible into a single function. Doing so would force an inherently public boolean to be delivered as a confidential pointer, which cannot drive control flow in an integrating contract and often cannot be read without sending a transaction. Conversely, it is often impossible or undesirable to return the result from `confidentialCanTransfer` as plaintext.
+The two are not collapsible into a single function. Doing so would force an inherently public boolean to be delivered as a confidential pointer, which cannot drive control flow in an integrating contract and often cannot be read without sending a transaction. On the flipside, it is often impossible or undesirable to return the result from `confidentialCanTransfer` as plaintext.
 
 ### The available balance is not a view function
 
