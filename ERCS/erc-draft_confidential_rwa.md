@@ -13,7 +13,7 @@ requires: 165, 7984
 
 ## Abstract
 
-This standard extends [ERC-7984](./eip-7984.md) with a minimal interface for defining tokenized real world assets. It provides a pair of plaintext eligibility checks, a confidential validation function answering whether a specific transfer is permitted, a confidential figure for the portion of a balance that is currently spendable, and an access restricted forced transfer. Amounts remain confidential pointers throughout. The standard constrains the behavior of minting, burning, halting, and freezing without mandating interfaces for them, leaving issuance and restriction mechanics to implementations.
+This ERC extends [ERC-7984](./eip-7984.md) with a minimal interface for defining tokenized real world assets. It provides a pair of plaintext eligibility checks, a confidential validation function answering whether a specific transfer is permitted, a confidential figure for the portion of a balance that is currently spendable, and an access restricted forced transfer. Amounts remain confidential pointers throughout. The standard constrains the behavior of minting, burning, halting, and freezing without mandating interfaces for them, leaving issuance and restriction mechanics to implementations.
 
 ## Motivation
 
