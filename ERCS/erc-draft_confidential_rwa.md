@@ -2,12 +2,12 @@
 eip: xxxx
 title: Confidential Real World Asset Token
 description: Compliance checks, spendable balances, and transfer enforcement for confidential tokens representing real world assets.
-author:
+author: Aryeh Greenberg (@arr00)
 discussions-to: xxxx
 status: Draft
 type: Standards Track
 category: ERC
-created: 2026-09-11
+created: 2026-09-24
 requires: 165, 7984
 ---
 
@@ -21,7 +21,7 @@ Real world assets carry obligations that ordinary fungible tokens do not. Holder
 
 [ERC-3643](./eip-3643.md) and [ERC-7943](./eip-7943.md) address these needs for tokens whose balances are public. Neither translates to a token whose balances and transfer amounts are confidential pointers.
 
-Confidentiality complicates this. A compliance answer that depends on the amount being transferred must itself be confidential, since an answer that changes with the amount reveals confidential information. Yet parties wish to have easy access to compliance information to enable smart-contract interactions and applications. A standard for confidential real world assets must serve both needs without letting either compromise the other.
+Confidentiality complicates this. Determining if a transfer is compliant depends on confidential data and therefore must be confidential itself. Yet parties wish to have easy access to compliance information to enable smart-contract interactions and applications. A standard for confidential real world assets must serve both needs without letting either compromise the other.
 
 This standard defines the minimum interface that does so, adapting prior compliance standards to a confidential token.
 
@@ -41,11 +41,11 @@ Functions accepting a confidential pointer as input also take a `bytes calldata 
 
 ```solidity
 interface IERCXXXX is IERC7984 {
-    event ConfidentialForcedTransfer(address indexed from, address indexed to, bytes32 indexed amount);
-
     event ConfidentialCanTransfer(address indexed operator, address indexed from, address indexed to, bytes32 allowed);
 
     event ConfidentialAvailableBalanceOf(address indexed account, bytes32 indexed amount);
+
+    event ConfidentialForcedTransfer(address indexed from, address indexed to, bytes32 indexed amount);
 
     function canSend(address sender) external view returns (bool);
 
@@ -75,7 +75,6 @@ interface IERCXXXX is IERC7984 {
 - #### `canSend`
 
   Returns whether `sender` is eligible to send the asset, ignoring any amount.
-
   - MUST NOT revert.
   - MUST NOT encode quantitative rules. Amount based restrictions and limitation checks belong in `confidentialCanTransfer`.
 
@@ -86,7 +85,6 @@ interface IERCXXXX is IERC7984 {
 - #### `canReceive`
 
   Returns whether `receiver` is eligible to receive the asset, ignoring any amount.
-
   - MUST NOT revert.
   - MUST NOT encode quantitative rules. Amount based restrictions and limitation checks belong in `confidentialCanTransfer`.
 
@@ -97,7 +95,6 @@ interface IERCXXXX is IERC7984 {
 - #### `confidentialCanTransfer`
 
   Returns a pointer to a boolean indicating whether `operator` may move `amount` from `from` to `to`.
-
   - MUST return a pointer to false OR revert if `canSend(from)` returns false, unless `from` is the zero address.
   - MUST return a pointer to false OR revert if `canReceive(to)` returns false, unless `to` is the zero address.
   - MUST return a pointer to false OR revert if any other rule would prevent the transfer (such as vesting, balance caps, etc).
@@ -112,7 +109,6 @@ interface IERCXXXX is IERC7984 {
 - #### `confidentialAvailableBalanceOf`
 
   Returns a pointer to the largest amount `account` could transfer at the time of the call, disregarding rules that depend on the recipient.
-
   - MUST be less than or equal to `confidentialBalanceOf(account)`.
   - MUST account for every restriction the implementation applies to the account's own balance, including issuer freezes, lockups, vesting schedules, and pledged amounts.
   - SHOULD NOT revert.
@@ -124,8 +120,7 @@ interface IERCXXXX is IERC7984 {
 
 - #### `forceConfidentialTransferFrom`
 
-  Moves `amount` from `from` to `to` without regard for the restrictions that apply to an ordinary transfer. Returns a pointer to the amount actually moved.
-
+  Moves `amount` from `from` to `to`. Returns a pointer to the amount actually moved.
   - MUST be restricted in access.
   - MUST move 0 tokens if `amount` exceeds `confidentialBalanceOf(from)`.
   - MAY move 0 tokens if `amount` exceeds `confidentialAvailableBalanceOf(from)`
@@ -157,53 +152,35 @@ interface IERCXXXX is IERC7984 {
   event ConfidentialAvailableBalanceOf(address indexed account, bytes32 indexed amount)
   ```
 
-### Pointer Authorization
-
-TODO
-
-### Minting and Burning
-
-A transfer whose `from` address is the zero address is a mint. A transfer whose `to` address is the zero address is a burn. `confidentialCanTransfer` MUST answer accordingly, and the eligibility check that applies to the zero address side of such a transfer MUST be skipped.
-
-This standard does not define an interface for issuance or redemption. Whatever mechanism an implementation exposes:
-
-- Permissionless minting MUST NOT succeed where `confidentialCanTransfer(operator, address(0), to, amount, data)` would resolve to false.
-- Permissionless burning MUST NOT succeed where `confidentialCanTransfer(operator, from, address(0), amount, data)` would resolve to false.
-- Permissioned minting and burning MAY disregard those results.
-
 ### Transfer Behavior
 
 An implementation MUST NOT complete a transfer of an amount for which `confidentialCanTransfer` would resolve to false unless otherwise specified above.
 
-Implementations SHOULD satisfy that requirement by transferring an amount of zero rather than by reverting.
+Implementations SHOULD satisfy that requirement by transferring an amount of zero rather than reverting.
 
 ## Rationale
 
 ### Plaintext eligibility alongside a confidential predicate
 
-This standard answers two distinct questions. The first is whether an address may hold the asset at all, which does not depend on any amount and is often derived from a non-confidential source such as an identity registry, allow-list, or block-list. The second is whether a particular transfer may proceed, which accounts for every rule, confidential and non-confidential alike, and whose result must therefore be confidential.
+This standard answers two distinct questions. The first is whether an address may send/receive an asset at all, which does not depend on any amount and is often derived from a non-confidential source such as an identity registry, allow-list, or block-list. The second is whether a particular transfer may proceed, which accounts for every rule, confidential and non-confidential alike, and whose result must therefore be confidential.
 
 `canSend` and `canReceive` answer the first question in plaintext as `view` functions. Consumers must understand that the answer is not exhaustive: a transfer to or from an eligible address may still fail on a rule evaluated within `confidentialCanTransfer`. `confidentialCanTransfer` answers the second question as a confidential pointer, subsuming the first, and is consumed both by the token in the course of a transfer and by integrators informing a user whether a specific transfer would be permitted.
 
-The two are not collapsible into a single function. Doing so would force an inherently public boolean to be delivered as a confidential pointer, which cannot drive control flow in an integrating contract and often cannot be read without sending a transaction. On the flipside, it is often impossible or undesirable to return the result from `confidentialCanTransfer` as plaintext.
+The two are not collapsible into a single function. Doing so would force an inherently public boolean to be delivered as a confidential pointer, which cannot drive control flow in an integrating contract and often cannot be read without sending a transaction. Conversely, it is often impossible or undesirable to return the result from `confidentialCanTransfer` as plaintext.
 
 ### The available balance is not a view function
 
-Deriving the spendable portion of a balance requires operations on confidential values, and pointer mechanisms generally require writing on-chain to operate on existing values. A `view` function therefore cannot produce a resolvable answer.
+Deriving the spendable portion of a balance often requires operations on confidential values, and pointer mechanisms usually require writing on-chain to operate on existing values. A `view` function therefore cannot produce a resolvable answer.
 
-Where a restriction varies continuously, as with a linear vesting schedule, no stored value can be accurate without being written at the moment it is read. A stored figure would be either stale or deliberately conservative.
-
-### Halting, freezing, and issuance are not in the interface
+### Halting, freezing, and vesting are not in the interface
 
 A halted token, a frozen balance, and an unfinished vesting schedule are all rules that determine whether a transfer may proceed. `confidentialCanTransfer` and `confidentialAvailableBalanceOf` already answer that question completely, so a separate accessor for each mechanism would add surface without adding information. Mandating one mechanism would also privilege it over the others an issuer may need. This core can be extended to support more specific use cases through additional standards or implementation extensions.
-
-Issuance and redemption are excluded for a different reason. Their mechanics vary widely across subscription agreements, primary market oracles, and offchain redemption queues, and no single signature generalizes over them. What does generalize is that a mint and a burn are transfers for compliance purposes, which this standard specifies.
 
 ## Security Considerations
 
 ### Disclosure through reverts
 
-A transfer that reverts when a compliance rule is not satisfied publicly discloses that a specific pair of addresses failed that rule, which may reveal details about the balance of the sender or recipient. Transferring zero avoids the disclosure but produces a transaction that appears successful while moving nothing. Integrating contracts MUST verify the returned amount rather than assuming a transfer of the requested size occurred.
+A transfer that reverts when a compliance rule is not satisfied publicly discloses that a specific pair of addresses failed that rule, which may reveal details about the balance of the sender or recipient. Transferring zero avoids the disclosure but produces a transaction that appears successful while moving nothing. Integrating contracts must verify the returned amount rather than assuming a transfer of the requested size occurred.
 
 ### Available balance accounting
 
